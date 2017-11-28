@@ -33,6 +33,8 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.github.kittinunf.fuel.Fuel;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
@@ -186,6 +188,7 @@ public class BluetoothLeService extends Service {
 //                intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
 //            }
 //        }
+        Fuel.post("http://192.168.81.121:9999/").body(data);
         sendBroadcast(intent);
 
         try {
