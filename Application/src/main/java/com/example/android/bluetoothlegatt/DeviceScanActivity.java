@@ -17,15 +17,19 @@
 package com.example.android.bluetoothlegatt;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -33,6 +37,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -43,6 +49,7 @@ import java.util.ArrayList;
  * Activity for scanning and displaying available Bluetooth LE devices.
  */
 public class DeviceScanActivity extends ListActivity {
+
     private LeDeviceListAdapter mLeDeviceListAdapter;
     private BluetoothAdapter mBluetoothAdapter;
     private boolean mScanning;
@@ -51,6 +58,8 @@ public class DeviceScanActivity extends ListActivity {
     private static final int REQUEST_ENABLE_BT = 1;
     // Stops scanning after 10 seconds.
     private static final long SCAN_PERIOD = 10000;
+
+    private SharedPreferences sharedPref;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -77,6 +86,8 @@ public class DeviceScanActivity extends ListActivity {
             finish();
             return;
         }
+
+        sharedPref = this.getSharedPreferences("SERVER", Context.MODE_PRIVATE);
     }
 
     @Override
@@ -95,6 +106,46 @@ public class DeviceScanActivity extends ListActivity {
         return true;
     }
 
+    public void showServerSetting() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        Context context = this;
+        LinearLayout layout = new LinearLayout(context);
+
+        builder.setTitle("服务器配置");
+
+        final EditText input = new EditText(this);
+//        input.setText(BluetoothLeService.serverIP);
+        input.setText(sharedPref.getString("server_ip", "192.168.0.201"));
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        layout.addView(input);
+
+        final EditText input2 = new EditText(this);
+//        input2.setText("" + BluetoothLeService.serverPort);
+        input2.setText("" + sharedPref.getInt("server_port", 8899));
+        input2.setInputType(InputType.TYPE_CLASS_NUMBER);
+        layout.addView(input2);
+        builder.setView(layout);
+
+        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putString("server_ip", input.getText().toString());
+                editor.putInt("server_port", Integer.parseInt(input2.getText().toString()));
+                editor.commit();
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        builder.show();
+
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -104,6 +155,9 @@ public class DeviceScanActivity extends ListActivity {
                 break;
             case R.id.menu_stop:
                 scanLeDevice(false);
+                break;
+            case R.id.menu_server:
+                showServerSetting();
                 break;
         }
         return true;

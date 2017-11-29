@@ -26,4 +26,7 @@
           android:title="@string/menu_stop"
           android:orderInCategory="101"
           android:showAsAction="ifRoom|withText"/>
+    <item android:id="@+id/menu_server"
+        android:title="服务器"
+        android:showAsAction="ifRoom|withText"/>
 </menu>

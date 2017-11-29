@@ -119,9 +119,11 @@ public class DeviceControlActivity extends Activity {
                 displayGattServices(mBluetoothLeService.getSupportedGattServices());
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
-//                Log.i(TAG, "raw:" + showBytes(data));
-                ;
-//                displayData(intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA).toString());
+                displayData(showBytes(data));
+            } else if (BluetoothLeService.ACTION_SERVER_CONNECTED.equals(action)) {
+                boolean isConnected = intent.getBooleanExtra(BluetoothLeService.EXTRA_IS_SERVER_CONNECTED, false);
+                TextView serverConnection = (TextView) findViewById(R.id.server_connection);
+                serverConnection.setText(String.valueOf(isConnected));
             }
         }
     };
@@ -324,6 +326,7 @@ public class DeviceControlActivity extends Activity {
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+        intentFilter.addAction(BluetoothLeService.ACTION_SERVER_CONNECTED);
         return intentFilter;
     }
 }

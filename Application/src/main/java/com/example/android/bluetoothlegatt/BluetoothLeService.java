@@ -26,12 +26,17 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.github.kittinunf.fuel.Fuel;
 
@@ -47,6 +52,8 @@ import java.util.UUID;
  */
 public class BluetoothLeService extends Service {
     private final static String TAG = BluetoothLeService.class.getSimpleName();
+
+    private SharedPreferences sharedPref;
 
     private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
@@ -66,39 +73,23 @@ public class BluetoothLeService extends Service {
             "com.example.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED";
     public final static String ACTION_DATA_AVAILABLE =
             "com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
+    public final static String EXTRA_IS_SERVER_CONNECTED =
+            "com.example.bluetooth.le.EXTRA_IS_SERVER_CONNECTED";
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
+
+    public final static String ACTION_SERVER_CONNECTED =
+            "com.example.bluetooth.le.SERVER_CONNECTED";
 
     public final static UUID UUID_HEART_RATE_MEASUREMENT =
             UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT);
 
-    Handler mHandler = new Handler();
-
     OutputStream printWriter;
     boolean isConnecting = false;
-    private static final long RECONN_DELAY_PERIOD = 2000;
+    boolean isConnected = false;
 
     private void connectServer() {
-        try {
-            Log.i("TCP", "Try to connect");
-            if (isConnecting) {
-                Log.i("TCP", "Already in connecting");
-                return;
-            }
-            isConnecting = true;
-            printWriter = new Socket("192.168.15.115", 4449).getOutputStream();  //connect to server
-            Log.i("TCP", "connected");
-            isConnecting = false;
-        } catch (IOException e) {
-            Log.i("TCP", "connect failed");
-            isConnecting = false;
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    connectServer();
-                }
-            }, RECONN_DELAY_PERIOD);
-        }
+        new RetrieveFeedTask().execute();
     }
 
     // Implements callback methods for GATT events that the app cares about.  For example,
@@ -188,16 +179,18 @@ public class BluetoothLeService extends Service {
 //                intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
 //            }
 //        }
-        Fuel.post("http://192.168.81.121:9999/").body(data);
+//        Fuel.post("http://192.168.81.121:9999/").body(data);
         sendBroadcast(intent);
 
-        try {
-            if (printWriter != null) {
-                printWriter.write(data);  //write the message to output stream
-            }
-        } catch (IOException e) {
-            connectServer();
-        }
+//        try {
+//            if (printWriter != null) {
+//                printWriter.write(data);  //write the message to output stream
+//            } else {
+//                connectServer();
+//            }
+//        } catch (IOException e) {
+//            connectServer();
+//        }
 
     }
 
@@ -207,9 +200,78 @@ public class BluetoothLeService extends Service {
         }
     }
 
+    class RetrieveFeedTask extends AsyncTask<String, Void, Void> {
+
+        private Exception exception;
+
+        protected Void doInBackground(String... urls) {
+            try {
+                Log.i(TAG, "建立连接");
+                if (isConnecting) {
+                    Log.i(TAG, "正在连接，请稍后重试");
+                    return null;
+                }
+                isConnecting = true;
+                isConnected = false;
+                String serverIP = sharedPref.getString("server_ip", "192.168.0.201");
+                int serverPort = sharedPref.getInt("server_port", 8899);
+                printWriter = new Socket(serverIP, serverPort).getOutputStream();  //connect to server
+                Log.i(TAG, "连接成功");
+                isConnecting = false;
+                isConnected = true;
+            } catch (IOException e) {
+                Log.i(TAG, "连接失败");
+                isConnecting = false;
+                isConnected = false;
+            }
+
+            final Intent intent = new Intent(ACTION_SERVER_CONNECTED);
+            intent.putExtra(EXTRA_IS_SERVER_CONNECTED, isConnected);
+            sendBroadcast(intent);
+
+            return null;
+        }
+
+        protected void onPostExecute(Void feed) {
+            // TODO: check this.exception
+            // TODO: do something with the feed
+        }
+    }
+
+
+    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+                byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
+                try {
+                    if (printWriter != null) {
+                        printWriter.write(data);  //write the message to output stream
+                    } else {
+                        connectServer();
+                    }
+                } catch (IOException e) {
+                    connectServer();
+                }
+            }
+        }
+    };
+
+    private static IntentFilter makeGattUpdateIntentFilter() {
+        final IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+        intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
+        intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+        return intentFilter;
+    }
+
     @Override
     public IBinder onBind(Intent intent) {
         Log.i("Service", "onBind");
+        registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+        sharedPref = this.getSharedPreferences("SERVER", Context.MODE_PRIVATE);
         return mBinder;
     }
 
