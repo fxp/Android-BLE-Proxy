@@ -36,9 +36,8 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.View;
 import android.widget.Toast;
-
-import com.github.kittinunf.fuel.Fuel;
 
 import java.io.IOException;
 import java.io.OutputStream;

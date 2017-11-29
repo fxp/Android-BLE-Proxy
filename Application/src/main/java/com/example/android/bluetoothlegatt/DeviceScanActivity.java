@@ -43,6 +43,8 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.umeng.analytics.MobclickAgent;
+
 import java.util.ArrayList;
 
 /**
@@ -64,6 +66,11 @@ public class DeviceScanActivity extends ListActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        MobclickAgent.setScenarioType(this, MobclickAgent.EScenarioType.E_UM_NORMAL);
+
+        MobclickAgent.setCatchUncaughtExceptions(true);
+
+
         getActionBar().setTitle(R.string.title_devices);
         mHandler = new Handler();
 
@@ -166,6 +173,7 @@ public class DeviceScanActivity extends ListActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        MobclickAgent.onResume(this);
 
         // Ensures Bluetooth is enabled on the device.  If Bluetooth is not currently enabled,
         // fire an intent to display a dialog asking the user to grant permission to enable it.
@@ -268,7 +276,8 @@ public class DeviceScanActivity extends ListActivity {
 
         public void addDevice(BluetoothDevice device, int rssi) {
             DeviceItem item = new DeviceItem(device, rssi);
-            if (device.getName() != null && device.getName().startsWith("MLT-") && !mLeDevices.contains(item)) {
+//            if (device.getName() != null && device.getName().startsWith("MLT-") && !mLeDevices.contains(item)) {
+            if (device.getName() != null &&  !mLeDevices.contains(item)) {
                 mLeDevices.add(item);
             }
         }
